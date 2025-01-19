@@ -36,14 +36,15 @@ con **lazy.nvim**
 
 ### Dependencies
 
-- Terminal con soporte de imágenes (WezTerm, kitty, ghostty)
+- Terminal con soporte de imágenes (kitty, WezTerm, ghostty)
 - image.nvim
 
 ## Funcionamiento
 
-Para cambiar a la diapositiva siguiente `n`, diapositiva anterior `p`. Para
-terminar la presentación `q`. La ejecución de codeblocks —lua, python,
-javascript— con la tecla `X`. Para mayor referencia de configuración vease
+Para iniciar la presentación `:XpresentXStart`, cambiar a la diapositiva
+siguiente `n`, diapositiva anterior `p`. Para terminar la presentación `q`. La
+ejecución de codeblocks —lua, python, javascript— con la tecla `X`. Para mayor
+referencia de configuración vease
 [present.nvim](https://github.com/tjdevries/present.nvim).
 
 La imágenes se muestran en la parte inferior derecha, con la tecla `I` la

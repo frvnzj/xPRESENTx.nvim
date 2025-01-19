@@ -93,6 +93,7 @@ local parse_slides = function(lines)
   }
 
   local separator = "^#"
+  local slide_separator = "<!%-%-%s*slide%s*%-%->"
 
   for _, line in ipairs(lines) do
     if line:find(separator) then
@@ -110,6 +111,14 @@ local parse_slides = function(lines)
       if line:match("^!%[.+%]%((.+)%)$") then
         local image_path = line:match("^!%[.+%]%((.+)%)$")
         table.insert(current_slide.images, image_path)
+      elseif line:find(slide_separator) then
+        table.insert(slides.slides, current_slide)
+        current_slide = {
+          title = current_slide.title,
+          body = {},
+          blocks = {},
+          images = {},
+        }
       else
         table.insert(current_slide.body, line)
       end

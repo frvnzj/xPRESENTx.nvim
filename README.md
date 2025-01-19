@@ -49,3 +49,8 @@ referencia de configuración vease
 
 La imágenes se muestran en la parte inferior derecha, con la tecla `I` la
 imagen se abre en grande, para cerrar `:q<cr>`.
+
+### Slides
+
+Si un header tiene mucha información, puedes dividir la sección en diversos
+slides usando un comentario para separa: `<!-- slide -->`

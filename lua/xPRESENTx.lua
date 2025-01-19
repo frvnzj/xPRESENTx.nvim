@@ -219,14 +219,13 @@ local render_images = function(images)
 
   state.images = {}
   local image_api = require("image")
-  local col = vim.o.columns / 2
 
   for _, path in ipairs(images) do
     local image = image_api.from_file(path, {
-      x = math.floor(col),
-      y = 4,
-      width = math.floor(col) - 4,
-      height = math.floor(vim.o.lines - 8),
+      x = math.floor(vim.o.columns * 0.5),
+      y = math.floor(vim.o.lines * 0.5),
+      width = math.floor(vim.o.columns * 0.5) - 4,
+      height = math.floor(vim.o.lines * 0.5),
     })
     image:render()
     table.insert(state.images, image)
@@ -324,6 +323,52 @@ M.start_xPRESENTx = function(opts)
 
     vim.bo[buf].filetype = "markdown"
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, output)
+  end)
+
+  xPRESENTx_keymap("n", "I", function()
+    local slide = state.parsed.slides[state.current_slide]
+
+    if not slide or #slide.images == 0 then
+      print("No hay imágenes en este slide")
+      return
+    end
+
+    local image_path = slide.images[1]
+    local image_api = require("image")
+
+    local buf = vim.api.nvim_create_buf(false, true)
+    local temp_width = math.floor(vim.o.columns * 0.8)
+    local temp_height = math.floor(vim.o.lines * 0.8)
+
+    vim.api.nvim_open_win(buf, true, {
+      relative = "editor",
+      style = "minimal",
+      noautocmd = true,
+      width = temp_width,
+      height = temp_height,
+      col = math.floor((vim.o.columns - temp_width) / 2),
+      row = math.floor((vim.o.lines - temp_height) / 2),
+      border = { " ", " ", " ", " ", " ", " ", " ", " " },
+    })
+
+    vim.bo[buf].filetype = "markdown"
+
+    local image = image_api.from_file(image_path, {
+      buffer = buf,
+      width = temp_width,
+      height = temp_height,
+      x = math.floor((vim.o.columns - temp_width) / 2) + 3,
+      y = math.floor((vim.o.lines - temp_height) / 2) + 1,
+    })
+
+    image:render()
+
+    vim.api.nvim_create_autocmd("BufLeave", {
+      buffer = buf,
+      callback = function()
+        image:clear()
+      end,
+    })
   end)
 
   local restore = {

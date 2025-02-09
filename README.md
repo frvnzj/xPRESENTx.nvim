@@ -1,8 +1,8 @@
 # xPRESENTx
 
 Este plugin está basado en
-[present.nvim](https://github.com/tjdevries/present.nvim), con el añadido de
-soporte de imágenes.
+[present.nvim](https://github.com/tjdevries/present.nvim),
+con el añadido de soporte de imágenes.
 
 ![xSSx](assets/xSSx.png)
 
@@ -47,8 +47,15 @@ ejecución de codeblocks —lua, python, javascript— con la tecla `X`. Para ma
 referencia de configuración vease
 [present.nvim](https://github.com/tjdevries/present.nvim).
 
-La imágenes se muestran en la parte inferior derecha, con la tecla `I` la
-imagen se abre en grande, para cerrar `:q<cr>`.
+La imágenes se muestran en la parte derecha, con la tecla `I` la
+imagen se abre en grande, para cerrar `:q<cr>`. Recomiendo, antes de iniciar la
+presentación, setear el textwidth del buffer a 50 y formatear el texto para que
+la presentación tenga una mejor disposición del texto a la izquierda y las
+imágenes a la derecha:
+
+`:set textwidth=50`
+
+después selecciona el párrafo del slide que contiene imágenes y presiona `gw`.
 
 ### Slides
 

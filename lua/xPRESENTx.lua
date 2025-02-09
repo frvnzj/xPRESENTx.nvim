@@ -232,10 +232,11 @@ local render_images = function(images)
   for _, path in ipairs(images) do
     local image = image_api.from_file(path, {
       x = math.floor(vim.o.columns * 0.5),
-      y = math.floor(vim.o.lines * 0.5),
+      y = math.floor(vim.o.lines * 0.2),
       width = math.floor(vim.o.columns * 0.5) - 4,
       height = math.floor(vim.o.lines * 0.5),
     })
+    ---@diagnostic disable-next-line: need-check-nil
     image:render()
     table.insert(state.images, image)
   end
@@ -370,11 +371,13 @@ M.start_xPRESENTx = function(opts)
       y = math.floor((vim.o.lines - temp_height) / 2) + 1,
     })
 
+    ---@diagnostic disable-next-line: need-check-nil
     image:render()
 
     vim.api.nvim_create_autocmd("BufLeave", {
       buffer = buf,
       callback = function()
+        ---@diagnostic disable-next-line: need-check-nil
         image:clear()
       end,
     })

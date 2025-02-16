@@ -1,41 +1,28 @@
 local M = {}
 
 local function create_floating_window(config, enter)
-  if enter == nil then
-    enter = false
-  end
-
+  enter = enter or false
   local buf = vim.api.nvim_create_buf(false, true)
-  local win = vim.api.nvim_open_win(buf, enter or false, config)
-
+  local win = vim.api.nvim_open_win(buf, enter, config)
   return { buf = buf, win = win }
 end
 
---- Default executor for lua code
-local execute_lua_code = function(block)
+local function execute_lua_code(block)
   local original_print = print
-
   local output = {}
 
   print = function(...)
-    local args = { ... }
-    local message = table.concat(vim.tbl_map(tostring, args), "\t")
-    table.insert(output, message)
+    table.insert(output, table.concat(vim.tbl_map(tostring, { ... }), "\t"))
   end
 
   local chunk = loadstring(block.body)
-  pcall(function()
-    if not chunk then
-      table.insert(output, " <<<BrokenCode>>>")
-    else
-      chunk()
-    end
-
-    return output
-  end)
+  if chunk then
+    pcall(chunk)
+  else
+    table.insert(output, " <<<BrokenCode>>>")
+  end
 
   print = original_print
-
   return output
 end
 
@@ -58,40 +45,13 @@ local options = {
 
 M.setup = function(opts)
   opts = opts or {}
-  opts.executors = opts.executors or {}
-
-  opts.executors.lua = opts.executors.lua or execute_lua_code
-  opts.executors.javascript = opts.executors.lua or M.create_system_executor("node")
-  opts.executors.python = opts.executors.lua or M.create_system_executor("python")
-
+  opts.executors = vim.tbl_extend("force", options.executors, opts.executors or {})
   options = opts
 end
 
----@class xPRESENTx.Slides
----@field slides xPRESENTx.Slide[]: Los slides del archivo
-
----@class xPRESENTx.Slide
----@field title string: El título del slide
----@field body string[]: El cuerpo del slide
----@field blocks xPRESENTx.block[]: Un codeblock en el slide
----@field images string[]: Ruta de las imágenes
-
----@class xPRESENTx.block
----@field language string: El lenguaje del codeblock
----@field body string: El body del codeblock
-
---- Formatear líneas
----@param lines string[]: Líneas en el buffer
----@return xPRESENTx.Slides
-local parse_slides = function(lines)
+local function parse_slides(lines)
   local slides = { slides = {} }
-  local current_slide = {
-    title = "",
-    body = {},
-    blocks = {},
-    images = {},
-  }
-
+  local current_slide = { title = "", body = {}, blocks = {}, images = {} }
   local separator = "^#"
   local slide_separator = "<!%-%-%s*slide%s*%-%->"
 
@@ -100,37 +60,20 @@ local parse_slides = function(lines)
       if #current_slide.title > 0 then
         table.insert(slides.slides, current_slide)
       end
-
-      current_slide = {
-        title = line,
-        body = {},
-        blocks = {},
-        images = {},
-      }
+      current_slide = { title = line, body = {}, blocks = {}, images = {} }
+    elseif line:match("^!%[.+%]%((.+)%)$") then
+      table.insert(current_slide.images, line:match("^!%[.+%]%((.+)%)$"))
+    elseif line:find(slide_separator) then
+      table.insert(slides.slides, current_slide)
+      current_slide = { title = current_slide.title, body = {}, blocks = {}, images = {} }
     else
-      if line:match("^!%[.+%]%((.+)%)$") then
-        local image_path = line:match("^!%[.+%]%((.+)%)$")
-        table.insert(current_slide.images, image_path)
-      elseif line:find(slide_separator) then
-        table.insert(slides.slides, current_slide)
-        current_slide = {
-          title = current_slide.title,
-          body = {},
-          blocks = {},
-          images = {},
-        }
-      else
-        table.insert(current_slide.body, line)
-      end
+      table.insert(current_slide.body, line)
     end
   end
   table.insert(slides.slides, current_slide)
 
   for _, slide in ipairs(slides.slides) do
-    local block = {
-      language = nil,
-      body = "",
-    }
+    local block = { language = nil, body = "" }
     local inside_block = false
     for _, line in ipairs(slide.body) do
       if vim.startswith(line, "```") then
@@ -141,11 +84,10 @@ local parse_slides = function(lines)
           inside_block = false
           block.body = vim.trim(block.body)
           table.insert(slide.blocks, block)
+          block = { language = nil, body = "" }
         end
-      else
-        if inside_block then
-          block.body = block.body .. line .. "\n"
-        end
+      elseif inside_block then
+        block.body = block.body .. line .. "\n"
       end
     end
   end
@@ -153,13 +95,12 @@ local parse_slides = function(lines)
   return slides
 end
 
-local create_window_configurations = function()
+local function create_window_configurations()
   local width = vim.o.columns
   local height = vim.o.lines
-
-  local header_height = 1 + 2
+  local header_height = 3
   local footer_height = 1
-  local body_height = height - header_height - footer_height - 2 - 1
+  local body_height = height - header_height - footer_height - 3
 
   return {
     background = {
@@ -202,26 +143,19 @@ local create_window_configurations = function()
   }
 end
 
-local state = {
-  parsed = {},
-  current_slide = 1,
-  floats = {},
-  images = {},
-}
+local state = { parsed = {}, current_slide = 1, floats = {}, images = {} }
 
-local foreach_float = function(cb)
+local function foreach_float(cb)
   for name, float in pairs(state.floats) do
     cb(name, float)
   end
 end
 
-local xPRESENTx_keymap = function(mode, key, callback)
-  vim.keymap.set(mode, key, callback, {
-    buffer = state.floats.body.buf,
-  })
+local function xPRESENTx_keymap(mode, key, callback)
+  vim.keymap.set(mode, key, callback, { buffer = state.floats.body.buf })
 end
 
-local render_images = function(images)
+local function render_images(images)
   for _, img in ipairs(state.images) do
     img:clear()
   end
@@ -236,7 +170,6 @@ local render_images = function(images)
       width = math.floor(vim.o.columns * 0.5) - 4,
       height = math.floor(vim.o.lines * 0.5),
     })
-    ---@diagnostic disable-next-line: need-check-nil
     image:render()
     table.insert(state.images, image)
   end
@@ -261,19 +194,15 @@ M.start_xPRESENTx = function(opts)
     vim.bo[float.buf].filetype = "markdown"
   end)
 
-  local set_slide_content = function(idx)
+  local function set_slide_content(idx)
     local width = vim.o.columns
-
     local slide = state.parsed.slides[idx]
-
     local padding = string.rep(" ", (width - #slide.title) / 2)
     local title = padding .. slide.title
     vim.api.nvim_buf_set_lines(state.floats.header.buf, 0, -1, false, { title })
     vim.api.nvim_buf_set_lines(state.floats.body.buf, 0, -1, false, slide.body)
-
     local footer = string.format("  %d / %d | %s", state.current_slide, #state.parsed.slides, state.title)
     vim.api.nvim_buf_set_lines(state.floats.footer.buf, 0, -1, false, { footer })
-
     render_images(slide.images)
   end
 
@@ -293,7 +222,6 @@ M.start_xPRESENTx = function(opts)
 
   xPRESENTx_keymap("n", "X", function()
     local slide = state.parsed.slides[state.current_slide]
-
     local block = slide.blocks[1]
     if not block then
       print("No hay codeblocks en este slide")
@@ -309,7 +237,6 @@ M.start_xPRESENTx = function(opts)
     local output = { "# Code", "", "```" .. block.language }
     vim.list_extend(output, vim.split(block.body, "\n"))
     table.insert(output, "```")
-
     table.insert(output, "")
     table.insert(output, "# Output")
     table.insert(output, "")
@@ -337,7 +264,6 @@ M.start_xPRESENTx = function(opts)
 
   xPRESENTx_keymap("n", "I", function()
     local slide = state.parsed.slides[state.current_slide]
-
     if not slide or #slide.images == 0 then
       print("No hay imágenes en este slide")
       return
@@ -370,26 +296,17 @@ M.start_xPRESENTx = function(opts)
       x = math.floor((vim.o.columns - temp_width) / 2) + 3,
       y = math.floor((vim.o.lines - temp_height) / 2) + 1,
     })
-
-    ---@diagnostic disable-next-line: need-check-nil
     image:render()
 
     vim.api.nvim_create_autocmd("BufLeave", {
       buffer = buf,
       callback = function()
-        ---@diagnostic disable-next-line: need-check-nil
         image:clear()
       end,
     })
   end)
 
-  local restore = {
-    cmdheight = {
-      original = vim.o.cmdheight,
-      xPRESENTx = 0,
-    },
-  }
-
+  local restore = { cmdheight = { original = vim.o.cmdheight, xPRESENTx = 0 } }
   for option, config in pairs(restore) do
     vim.opt[option] = config.xPRESENTx
   end
@@ -400,11 +317,9 @@ M.start_xPRESENTx = function(opts)
       for option, config in pairs(restore) do
         vim.opt[option] = config.original
       end
-
       foreach_float(function(_, float)
         pcall(vim.api.nvim_win_close, float.win, true)
       end)
-
       for _, img in ipairs(state.images) do
         img:clear()
       end
@@ -414,31 +329,19 @@ M.start_xPRESENTx = function(opts)
   vim.api.nvim_create_autocmd("VimResized", {
     group = vim.api.nvim_create_augroup("xPRESENTx-resized", {}),
     callback = function()
-      if not vim.api.nvim_win_is_valid(state.floats.body.win) or state.floats.body.win == nil then
+      if not vim.api.nvim_win_is_valid(state.floats.body.win) then
         return
       end
-
       local updated = create_window_configurations()
       foreach_float(function(name, _)
         vim.api.nvim_win_set_config(state.floats[name].win, updated[name])
       end)
-
       set_slide_content(state.current_slide)
     end,
   })
 
   set_slide_content(state.current_slide)
 end
-
--- vim.print(parse_slides({
---   "# Hola",
---   "Esta es una prueba del plugin",
---   "![Imágen](assets/prueba.png)",
---   "# mundo",
---   "Una línea más para la prueba",
--- }))
-
--- M.start_xPRESENTx({ bufnr = 13 })
 
 M._parse_slides = parse_slides
 
